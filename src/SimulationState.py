@@ -22,6 +22,10 @@ class SimulationState:
         self.angle_x = 0.6  # Initial tilt
         self.angle_y = 0.0  # Initial rotation
         
+        self.is_dragging = False
+        self.last_mouse_pos = (0, 0)
+        self.mouse_sensitivity = 0.01  # Adjust this to change rotation speed
+        
         # UI Font
         pygame.font.init()
         self.font = pygame.font.SysFont(None, 24)
@@ -37,6 +41,7 @@ class SimulationState:
     def update(self, events):
         keys = pygame.key.get_pressed()
         
+        # Parameter controls
         if keys[pygame.K_e]: self.a += 0.002
         if keys[pygame.K_q]: self.a -= 0.002
         
@@ -45,17 +50,38 @@ class SimulationState:
         
         if keys[pygame.K_c]: self.c += 0.02
         if keys[pygame.K_z]: self.c -= 0.02
-        
-        if keys[pygame.K_LEFT]: self.angle_y -= 0.03
-        if keys[pygame.K_RIGHT]: self.angle_y += 0.03
-        if keys[pygame.K_UP]: self.angle_x -= 0.03
-        if keys[pygame.K_DOWN]: self.angle_x += 0.03
 
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 # Transition back to the Main Menu 
                 self.state_machine.transition('menu')
 
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left mouse button click
+                    self.is_dragging = True
+                    self.last_mouse_pos = event.pos
+                elif event.button == 4:  # Mouse wheel scroll up
+                    self.scale += 2      # Zoom in
+                elif event.button == 5:  # Mouse wheel scroll down
+                    self.scale = max(2, self.scale - 2)  
+
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.is_dragging = False
+
+            elif event.type == pygame.MOUSEMOTION:
+                if self.is_dragging:
+                    mouse_x, mouse_y = event.pos
+                    
+                    dx = mouse_x - self.last_mouse_pos[0]
+                    dy = mouse_y - self.last_mouse_pos[1]
+
+                    self.angle_y += dx * self.mouse_sensitivity
+                    self.angle_x += dy * self.mouse_sensitivity
+
+                    self.last_mouse_pos = event.pos
+
+        # Integration loop
         for _ in range(8):
             dx = -self.y - self.z
             dy = self.x + self.a * self.y
@@ -85,7 +111,6 @@ class SimulationState:
             x1 = px * math.cos(self.angle_y) - pz * math.sin(self.angle_y)
             z1 = px * math.sin(self.angle_y) + pz * math.cos(self.angle_y)
             
-            
             y2 = py * math.cos(self.angle_x) - z1 * math.sin(self.angle_x)
             
             # Map to 2D screen coordinates
@@ -94,10 +119,8 @@ class SimulationState:
             
             projected_points.append((screen_x, screen_y))
 
-
         if len(projected_points) > 1:
             pygame.draw.lines(surface, (100, 200, 255), False, projected_points, 1)
-
 
         ui_elements = [
             "Rössler Attractor",
@@ -106,7 +129,8 @@ class SimulationState:
             f"Constant b: {self.b:.3f}   [A/D to adjust]",
             f"Constant c: {self.c:.3f}   [Z/C to adjust]",
             "",
-            "Camera: Arrow Keys to Rotate",
+            "Camera: Left-Click + Drag to Rotate",
+            "Zoom: Mouse Wheel",
             "Warning: Certain values paired with",
             "others may cause instability",
             "Back: ESC"
