@@ -66,7 +66,7 @@ class SimulationState:
             self.y += dy * self.dt
             self.z += dz * self.dt
             
-            if math.isnan(self.x) or math.isinf(self.x) or abs(self.x) > 10000:
+            if math.isnan(self.x) or math.isinf(self.x) or abs(self.x) > 100000:
                 self.x, self.y, self.z = 0.1, 0.0, 0.0
                 self.points_3d.clear()
                 break
